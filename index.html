@@ -1,0 +1,1004 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Recursive Synthesis Engine</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+
+    <style>
+        /* Theme: Nexus Void - Ultra v3.2 Stable */
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&family=Rajdhani:wght@500;600;700&family=Space+Mono:wght@400;700&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        :root {
+            --cyan-glow: 0 0 15px rgba(6, 182, 212, 0.6);
+            --fuchsia-glow: 0 0 15px rgba(217, 70, 239, 0.6);
+            --panel-bg: rgba(5, 8, 16, 0.92); /* Darker, more opaque for stability */
+            --glass-border: rgba(255, 255, 255, 0.1);
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #000;
+            color: #e2e8f0;
+            min-height: 100vh;
+            overflow-x: hidden;
+            /* Removed 3D perspective to stop motion sickness */
+        }
+
+        /* CANVAS BACKGROUND */
+        #neural-canvas {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            z-index: -1;
+            background: radial-gradient(circle at center, #0f172a 0%, #000 100%);
+        }
+
+        h1, h2, h3, h4, h5, label, button, .tech-font {
+            font-family: 'Rajdhani', sans-serif;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .mono-font { font-family: 'Share Tech Mono', monospace; }
+
+        /* STABLE HOLOGRAPHIC PANEL */
+        .holo-container {
+            /* Removed transform-style and transition for stability */
+            position: relative;
+            z-index: 10;
+        }
+
+        .glass-panel {
+            background: var(--panel-bg);
+            backdrop-filter: blur(12px); 
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.8);
+            position: relative;
+            overflow: hidden;
+        }
+
+        /* Cyber Decorations - Refined */
+        .cyber-corner {
+            position: absolute;
+            width: 8px; height: 8px;
+            border: 2px solid rgba(255,255,255,0.2);
+            transition: all 0.3s ease;
+        }
+        .tl { top: 0; left: 0; border-right: none; border-bottom: none; }
+        .tr { top: 0; right: 0; border-left: none; border-bottom: none; }
+        .bl { bottom: 0; left: 0; border-right: none; border-top: none; }
+        .br { bottom: 0; right: 0; border-left: none; border-top: none; }
+
+        .glass-panel:hover .cyber-corner {
+            width: 12px; height: 12px;
+            border-color: #06b6d4;
+        }
+
+        /* TERMINAL STYLING - Cleaned up */
+        .console-log {
+            font-family: 'Share Tech Mono', monospace;
+            min-height: 600px;
+            max-height: 85vh;
+            overflow-y: auto;
+            background: rgba(0, 0, 0, 0.95); /* Almost solid black for readability */
+            color: #10b981;
+            border-radius: 4px;
+            padding: 2rem;
+            position: relative;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+        }
+        
+        /* Scanline - Subtle */
+        .scanlines {
+            background: linear-gradient(to bottom, rgba(255,255,255,0), rgba(255,255,255,0) 50%, rgba(0,0,0,0.1) 50%, rgba(0,0,0,0.1));
+            background-size: 100% 4px;
+            position: absolute;
+            top: 0; left: 0; right: 0; bottom: 0;
+            pointer-events: none;
+            z-index: 10;
+            opacity: 0.3;
+        }
+
+        /* Step Entries - sharper animation */
+        .step-entry {
+            margin-bottom: 1.5rem;
+            padding: 1.25rem;
+            border-radius: 2px;
+            background: rgba(20, 20, 25, 0.5);
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            border-left-width: 4px;
+            position: relative;
+            opacity: 0; 
+            animation: slideIn 0.3s ease-out forwards;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateX(-10px); }
+            to { opacity: 1; transform: translateX(0); }
+        }
+        
+        /* CORE COLORS - More vivid */
+        .core-1-active { 
+            border-left-color: #06b6d4;
+            background: linear-gradient(90deg, rgba(6, 182, 212, 0.08) 0%, transparent 100%);
+        }
+        
+        .core-2-active { 
+            border-left-color: #d946ef;
+            background: linear-gradient(90deg, rgba(217, 70, 239, 0.08) 0%, transparent 100%);
+        } 
+
+        .followup-active {
+            border-left-color: #8b5cf6;
+            background: linear-gradient(90deg, rgba(139, 92, 246, 0.08) 0%, transparent 100%);
+        }
+
+        /* Typer Cursor */
+        .cursor-blink {
+            display: inline-block;
+            width: 8px; height: 1em;
+            background-color: currentColor;
+            animation: blink 1s step-end infinite;
+            vertical-align: middle;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
+
+        /* INPUTS & BUTTONS */
+        input, textarea {
+            background: rgba(10, 15, 25, 0.8);
+            border: 1px solid rgba(255,255,255,0.15);
+            color: #fff;
+            transition: 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+        input::placeholder, textarea::placeholder { color: #475569; font-family: 'Rajdhani', sans-serif; letter-spacing: 0.1em; }
+        input:focus, textarea:focus {
+            outline: none;
+            border-color: #06b6d4;
+            background: rgba(5, 10, 20, 1);
+        }
+
+        /* Initiate Button - Solid styling */
+        .btn-initiate {
+            background: #0891b2; /* Solid Cyan base */
+            color: white;
+            position: relative;
+            overflow: hidden;
+            transition: 0.2s;
+            box-shadow: 0 4px 15px rgba(8, 145, 178, 0.3);
+        }
+        .btn-initiate:hover:not(:disabled) {
+            background: #06b6d4;
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(6, 182, 212, 0.5);
+        }
+        .btn-initiate:disabled {
+            background: #1e293b;
+            color: #64748b;
+            box-shadow: none;
+            cursor: not-allowed;
+        }
+
+        /* Preset Chips */
+        .preset-chip {
+            font-family: 'Share Tech Mono', monospace;
+            font-size: 0.65rem;
+            padding: 8px 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            background: rgba(0,0,0,0.4);
+            color: #94a3b8;
+            cursor: pointer;
+            transition: all 0.2s;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+        .preset-chip:hover {
+            border-color: #06b6d4;
+            color: #22d3ee;
+            background: rgba(6, 182, 212, 0.1);
+        }
+
+        /* CORE VISUALIZERS - Fixed positions */
+        .core-badge {
+            padding: 4px 8px;
+            font-size: 10px;
+            background: #0f172a;
+            border: 1px solid #334155;
+            color: #64748b;
+            transition: 0.3s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+        .core-badge .dot { width: 6px; height: 6px; background: #334155; border-radius: 50%; }
+        
+        .core-badge.active-c1 {
+            background: #06b6d4;
+            color: #000;
+            border-color: #22d3ee;
+            box-shadow: 0 0 15px rgba(6,182,212,0.5);
+            font-weight: bold;
+        }
+        .core-badge.active-c1 .dot { background: #fff; box-shadow: 0 0 5px #fff; }
+
+        .core-badge.active-c2 {
+            background: #d946ef;
+            color: #000;
+            border-color: #f0abfc;
+            box-shadow: 0 0 15px rgba(217,70,239,0.5);
+            font-weight: bold;
+        }
+        .core-badge.active-c2 .dot { background: #fff; box-shadow: 0 0 5px #fff; }
+
+        /* Toggle */
+        .toggle-switch {
+            appearance: none;
+            width: 40px; height: 20px;
+            background: #1e293b;
+            border-radius: 20px;
+            position: relative;
+            outline: none;
+            cursor: pointer;
+            border: 1px solid #334155;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px; left: 2px;
+            width: 14px; height: 14px;
+            background: #94a3b8;
+            border-radius: 50%;
+            transition: 0.3s;
+        }
+        .toggle-switch:checked { background: #0891b2; border-color: #06b6d4; }
+        .toggle-switch:checked::after { transform: translateX(20px); background: #fff; }
+
+        /* Markdown Formatting */
+        .md-heading { color: #38bdf8; font-weight: 700; display: block; margin-top: 1rem; margin-bottom: 0.5rem; letter-spacing: 0.05em; font-family: 'Rajdhani', sans-serif; text-transform: uppercase; }
+        .md-strong { color: #fff; font-weight: 700; }
+        .md-list { padding-left: 1rem; color: #cbd5e1; margin-bottom: 1rem; }
+        .md-list li { margin-bottom: 0.4rem; position: relative; list-style: none; }
+        .md-list li::before { content: '>>'; position: absolute; left: -1.2rem; color: #475569; font-size: 0.7rem; top: 0.2rem; }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: #020617; }
+        ::-webkit-scrollbar-thumb { background: #1e293b; border: 1px solid #334155; }
+        ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    </style>
+</head>
+<body class="flex justify-center items-start pt-4 md:pt-10 px-4">
+    
+    <!-- Live Canvas Background -->
+    <canvas id="neural-canvas"></canvas>
+
+    <!-- Main Container -->
+    <div id="mainContainer" class="holo-container w-full max-w-[1500px] relative z-10 mb-10">
+        
+        <!-- Header Deck -->
+        <header class="glass-panel rounded-t-xl p-6 mb-1 border-b-0">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-purple-500 to-cyan-500 opacity-50"></div>
+            <div class="cyber-corner tl"></div>
+            <div class="cyber-corner tr"></div>
+            
+            <div class="flex flex-col md:flex-row justify-between items-end md:items-center">
+                <div class="flex items-center space-x-4">
+                    <div class="relative">
+                        <div class="w-12 h-12 border-2 border-cyan-500/50 rounded-full flex items-center justify-center animate-[spin_10s_linear_infinite]">
+                            <div class="w-8 h-8 border border-fuchsia-500/50 rounded-full"></div>
+                        </div>
+                        <div class="absolute inset-0 flex items-center justify-center">
+                            <span class="text-xs font-bold text-white">NX</span>
+                        </div>
+                    </div>
+                    <div>
+                        <h1 class="text-4xl md:text-5xl font-bold text-white tracking-tighter drop-shadow-[0_0_10px_rgba(6,182,212,0.5)]">
+                            NEXUS <span class="text-cyan-400">ENGINE</span>
+                        </h1>
+                        <div class="flex items-center space-x-3 mt-1">
+                            <span class="text-[10px] px-1 border border-cyan-500/30 text-cyan-400 bg-cyan-900/20">V4.2 STABLE</span>
+                            <span class="text-[10px] text-slate-500 tracking-widest">RECURSIVE SYNTHESIS PROTOCOL</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="flex flex-col items-end mt-4 md:mt-0">
+                    <!-- Core Status -->
+                    <div class="flex items-center space-x-3 mb-3">
+                         <div id="monitor-c1" class="core-badge">
+                             <div class="dot"></div> CORE.01 // PHYSICS
+                         </div>
+                         <div id="monitor-c2" class="core-badge">
+                             <div class="dot"></div> CORE.02 // OPTIM
+                         </div>
+                    </div>
+
+                    <div class="flex items-center space-x-3">
+                        <button id="muteToggle" class="text-slate-500 hover:text-white transition-colors flex items-center gap-2" title="Toggle Interface Sounds">
+                            <span class="text-[9px] font-bold tracking-widest">AUDIO</span>
+                            <svg id="icon-sound-on" class="hidden w-4 h-4 text-cyan-400" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.805l-1.067 3.557a.75.75 0 0 0 .72.965h.439l3.364 6.728a1.877 1.877 0 0 0 1.678.995h3.478a1.876 1.876 0 0 0 1.678-.995l3.364-6.728h.618c1.25 0 2.063-.995 1.898-2.232l-1.067-3.557c-.342-1.141-1.519-1.805-2.66-1.805h-1.94l4.5-4.5c.944-.945 2.56-.276 2.56 1.06v15.88c0 1.336-1.616 2.005-2.56 1.06l-2.25-2.25a.75.75 0 0 0-1.06 1.06l2.25 2.25c.944.945 2.56.276 2.56-1.06V4.06Z"/></svg>
+                            <svg id="icon-sound-off" class="w-4 h-4" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor"><path d="M13.5 4.06c0-1.336-1.616-2.005-2.56-1.06l-4.5 4.5H4.508c-1.141 0-2.318.664-2.66 1.805l-1.067 3.557a.75.75 0 0 0 .72.965h.439l3.364 6.728a1.877 1.877 0 0 0 1.678.995h3.478a1.876 1.876 0 0 0 1.678-.995l3.364-6.728h.618c1.25 0 2.063-.995 1.898-2.232l-1.067-3.557c-.342-1.141-1.519-1.805-2.66-1.805h-1.94l4.5-4.5c.944-.945 2.56-.276 2.56 1.06v15.88c0 1.336-1.616 2.005-2.56 1.06l-2.25-2.25a.75.75 0 0 0-1.06 1.06l2.25 2.25c.944.945 2.56.276 2.56-1.06V4.06Z"/></svg>
+                        </button>
+                        <div id="currentStatus" class="text-xs font-mono text-cyan-500 tracking-wide">SYSTEM ONLINE</div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Config Bar (API KEYS) -->
+        <div class="glass-panel p-4 mb-6 border-y-0 bg-slate-900/80">
+            <div class="flex items-center mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3 h-3 text-slate-500 mr-2"><path fill-rule="evenodd" d="M15.75 1.5a6.75 6.75 0 0 0-6.651 7.906c.067.39-.032.717-.221.906l-6.5 6.499a3 3 0 0 0-.878 2.121v2.818c0 .414.336.75.75.75H6a.75.75 0 0 0 .75-.75v-1.5h1.5a.75.75 0 0 0 .75-.75v-1.5h1.5a.75.75 0 0 0 .75-.75V14.5h1.5a.75.75 0 0 0 .75-.75v-1.5a.75.75 0 0 0 .042-.25 6.75 6.75 0 0 0 9.45-7.5Z" clip-rule="evenodd" /></svg>
+                <span class="text-[10px] font-bold text-slate-400 uppercase tracking-widest">ACCESS TOKENS</span>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                 <div class="relative group">
+                    <input type="password" id="apiKey1" class="w-full pl-8 pr-4 py-2 text-xs font-mono rounded focus:border-cyan-500" placeholder="PRIMARY KEY [PHYSICS CORE]">
+                    <div class="absolute left-3 top-2.5 w-2 h-2 bg-cyan-600 rounded-full group-hover:bg-cyan-400 transition-colors"></div>
+                </div>
+                <div class="relative group">
+                    <input type="password" id="apiKey2" class="w-full pl-8 pr-4 py-2 text-xs font-mono rounded focus:border-fuchsia-500" placeholder="SECONDARY KEY [OPTIMIZATION CORE]">
+                    <div class="absolute left-3 top-2.5 w-2 h-2 bg-fuchsia-600 rounded-full group-hover:bg-fuchsia-400 transition-colors"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Content Grid -->
+        <div class="grid grid-cols-1 lg:grid-cols-12 h-full">
+            
+            <!-- LEFT: Command Deck -->
+            <div class="lg:col-span-4 bg-slate-900/80 border-r border-white/5 p-6 flex flex-col gap-6 relative">
+                
+                <!-- Prompt Area -->
+                <div>
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xs font-bold text-slate-400 tracking-widest">TARGET PARAMETERS</h2>
+                        <button id="micButton" class="text-slate-600 hover:text-cyan-400 transition-colors" title="Voice Input">
+                             <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4"><path d="M8.25 10.5a1.5 1.5 0 1 1 3 0v4.5a1.5 1.5 0 0 1-3 0v-4.5ZM12 18a3.75 3.75 0 0 0 3.75-3.75V9h-1.5a.75.75 0 0 0 0 1.5h1.5v4.5c0 .414-.336.75-.75.75H9.75a.75.75 0 0 0-.75.75v1.5a.75.75 0 0 0 1.5 0v-1.5a.75.75 0 0 0 .75-.75h.75ZM12 4.5a.75.75 0 0 0-.75.75v4.5a.75.75 0 0 0 1.5 0v-4.5a.75.75 0 0 0-.75-.75Z" /></svg>
+                        </button>
+                    </div>
+                    <textarea id="designPrompt" rows="6" class="w-full p-4 text-sm font-mono bg-black/60 text-cyan-100 resize-none focus:ring-1 focus:ring-cyan-500/50" placeholder="Define architecture goal..."></textarea>
+                </div>
+
+                <!-- Presets -->
+                <div>
+                    <h2 class="text-[10px] font-bold text-slate-500 mb-2 uppercase">Vector Presets</h2>
+                    <div class="flex flex-wrap gap-2" id="presetContainer">
+                        <!-- JS injected -->
+                    </div>
+                </div>
+
+                <!-- Controls -->
+                <div class="space-y-4 border-t border-white/5 pt-4">
+                    <div class="flex justify-between items-center">
+                        <span class="text-xs text-slate-400 font-bold">SYNTHESIS DEPTH</span>
+                        <div class="flex items-center space-x-3">
+                            <span class="text-[10px] text-slate-600 font-mono">25</span>
+                            <input type="checkbox" id="depthToggle" class="toggle-switch">
+                            <span class="text-[10px] text-white font-mono">50</span>
+                        </div>
+                    </div>
+
+                    <button id="startButton" class="btn-initiate w-full py-4 rounded text-xs font-bold tracking-[0.2em] uppercase flex items-center justify-center group">
+                        <span class="mr-3">Initiate Sequence</span>
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 group-hover:translate-x-1 transition-transform"><path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" /></svg>
+                    </button>
+                </div>
+
+                <!-- Recursion / Followup -->
+                <div id="followUpPanel" class="hidden border-t border-white/10 pt-4 mt-2">
+                    <div class="flex justify-between items-center mb-2">
+                        <h2 class="text-xs font-bold text-slate-400 tracking-widest">REFINEMENT PROTOCOL</h2>
+                    </div>
+                    <textarea id="followUpPrompt" rows="2" class="w-full p-3 text-xs bg-black/60 border border-slate-800 focus:border-cyan-500 text-slate-200 mb-3 resize-none transition-colors" placeholder="Enter query or refinement directive..."></textarea>
+                    
+                    <div class="flex justify-between items-center mb-2 px-1">
+                        <label class="flex items-center space-x-2 cursor-pointer group">
+                            <input type="checkbox" id="recursiveToggle" class="w-3 h-3 accent-fuchsia-500 bg-gray-800 border-slate-600 rounded-sm">
+                            <span class="text-[10px] text-slate-500 uppercase group-hover:text-fuchsia-400 transition-colors font-bold">Enable Deep Loop</span>
+                        </label>
+                        
+                        <div id="followUpDepthContainer" class="flex items-center space-x-2 transition-all duration-300 opacity-20 blur-sm pointer-events-none">
+                            <span class="text-[9px] text-slate-600 font-mono">25 STEP</span>
+                            <input type="checkbox" id="followUpDepthToggle" class="toggle-switch !w-8 !h-4 after:!w-3 after:!h-3 after:!top-0.5 checked:!bg-fuchsia-500 checked:!border-fuchsia-500">
+                            <span class="text-[9px] text-fuchsia-500 font-mono">50 STEP</span>
+                        </div>
+                    </div>
+
+                    <button id="followUpButton" class="w-full py-3 mt-2 bg-slate-800/50 border border-slate-600 text-slate-300 text-xs font-bold hover:bg-slate-800 hover:text-white transition-all uppercase tracking-widest">
+                        TRANSMIT QUERY <span class="text-slate-500 font-bold">[SINGLE SEARCH]</span>
+                    </button>
+                </div>
+                
+                <!-- Export -->
+                <div id="exportPanel" class="mt-auto pt-4 opacity-50 pointer-events-none transition-opacity">
+                    <button id="pdfButton" class="w-full py-2 border border-slate-700 text-slate-400 text-xs hover:text-white hover:border-slate-500 transition-colors flex justify-center items-center">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-3 h-3 mr-2"><path fill-rule="evenodd" d="M12 2.25a.75.75 0 0 1 .75.75v11.69l3.18-3.18a.75.75 0 1 1 1.06 1.06l-4.5 4.5a.75.75 0 0 1-1.06 0l-4.5-4.5a.75.75 0 1 1 1.06-1.06l3.18 3.18V3a.75.75 0 0 1 .75-.75ZM7.5 15a.75.75 0 0 0 0 1.5h9a.75.75 0 0 0 0-1.5h-9Z" clip-rule="evenodd" /></svg>
+                        DOWNLOAD MANIFEST
+                    </button>
+                </div>
+
+            </div>
+
+            <!-- RIGHT: Visual Log -->
+            <div class="lg:col-span-8 h-full bg-black/40 relative">
+                <div class="absolute top-0 left-0 w-full h-8 bg-black/80 border-b border-white/10 flex justify-between items-center px-4 z-20 backdrop-blur-sm">
+                    <div class="flex items-center space-x-2">
+                        <div class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></div>
+                        <span class="text-[10px] font-mono text-slate-400">LIVE_STREAM_CONNECTION</span>
+                    </div>
+                    <div class="text-[10px] font-mono text-slate-600">LATENCY: 12ms // SECURE</div>
+                </div>
+
+                <div id="logConsole" class="console-log pt-12">
+                    <div class="scanlines"></div>
+                    <!-- Intro Text -->
+                    <div class="step-entry border-l-slate-600 mb-4">
+                        <div class="text-xs font-mono text-slate-400 mb-2">SYSTEM_BOOT_SEQUENCE</div>
+                        <div class="typewriter-text text-slate-300 text-sm leading-relaxed font-mono">
+                            Initializing Nexus Recursive Engine v4.2...<br>
+                            > Neural Mesh: <span class="text-emerald-500">CONNECTED</span><br>
+                            > Physics Core: <span class="text-cyan-500">STANDBY</span><br>
+                            > Optimization Core: <span class="text-fuchsia-500">STANDBY</span><br>
+                            > Awaiting Input Vector...
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Bottom Deco -->
+                <div class="absolute bottom-0 left-0 w-full h-12 bg-gradient-to-t from-black via-black/80 to-transparent pointer-events-none"></div>
+            </div>
+
+        </div>
+        
+        <div class="cyber-corner bl"></div>
+        <div class="cyber-corner br"></div>
+    </div>
+
+    <script>
+        // --- CONFIG ---
+        const DEFAULTS = {
+            KEY_1: "AIzaSyAiXJPg9gCA8nYkAdflJpQsM7y2LSR4Ycg",
+            KEY_2: "AIzaSyDQxUvM0gH9E0GAubR8_p0QvZcuamwwjWY"
+        };
+
+        // --- AUDIO SYSTEM ---
+        const AUDIO = {
+            enabled: false,
+            ctx: null,
+            init: function() {
+                if (!window.AudioContext) return;
+                this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+            },
+            playTone: function(freq, type, duration) {
+                if (!this.enabled || !this.ctx) return;
+                const osc = this.ctx.createOscillator();
+                const gain = this.ctx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, this.ctx.currentTime);
+                gain.gain.setValueAtTime(0.02, this.ctx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.001, this.ctx.currentTime + duration);
+                osc.connect(gain);
+                gain.connect(this.ctx.destination);
+                osc.start();
+                osc.stop(this.ctx.currentTime + duration);
+            },
+            click: function() { this.playTone(1200, 'sine', 0.05); },
+            processing: function() { this.playTone(200, 'square', 0.1); },
+            success: function() { 
+                this.playTone(600, 'sine', 0.1); 
+                setTimeout(() => this.playTone(1200, 'sine', 0.2), 100);
+            }
+        };
+
+        // --- CANVAS BACKGROUND & PARALLAX ---
+        const canvas = document.getElementById('neural-canvas');
+        const ctx = canvas.getContext('2d');
+        let particles = [];
+        
+        // Mouse position for parallax
+        let mouseX = 0;
+        let mouseY = 0;
+        let targetX = 0;
+        let targetY = 0;
+
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX;
+            mouseY = e.clientY;
+        });
+        resizeCanvas();
+
+        class Particle {
+            constructor() {
+                this.x = Math.random() * canvas.width;
+                this.y = Math.random() * canvas.height;
+                this.vx = (Math.random() - 0.5) * 0.3;
+                this.vy = (Math.random() - 0.5) * 0.3;
+                this.size = Math.random() * 2;
+                // More vibrant colors
+                this.color = Math.random() > 0.5 ? 'rgba(6, 182, 212,' : 'rgba(217, 70, 239,';
+                this.depth = Math.random(); // For parallax intensity
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                if (this.x < 0) this.x = canvas.width;
+                if (this.x > canvas.width) this.x = 0;
+                if (this.y < 0) this.y = canvas.height;
+                if (this.y > canvas.height) this.y = 0;
+            }
+            draw(offsetX, offsetY) {
+                ctx.beginPath();
+                // Parallax offset based on depth
+                const px = this.x + (offsetX * this.depth * 50); 
+                const py = this.y + (offsetY * this.depth * 50);
+                
+                ctx.arc(px, py, this.size, 0, Math.PI * 2);
+                ctx.fillStyle = this.color + '0.6)';
+                ctx.fill();
+                return { x: px, y: py };
+            }
+        }
+
+        function initParticles() {
+            particles = [];
+            for (let i = 0; i < 80; i++) particles.push(new Particle());
+        }
+
+        function animateParticles() {
+            // Smooth interpolation for parallax
+            targetX += (mouseX / window.innerWidth - 0.5 - targetX) * 0.05;
+            targetY += (mouseY / window.innerHeight - 0.5 - targetY) * 0.05;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            // Map coords for connecting lines
+            const renderedPoints = [];
+
+            particles.forEach((p, index) => {
+                p.update();
+                const pos = p.draw(-targetX, -targetY); // Invert for parallax depth feel
+                renderedPoints.push(pos);
+            });
+
+            // Connect lines
+            ctx.lineWidth = 0.5;
+            for (let i = 0; i < renderedPoints.length; i++) {
+                for (let j = i + 1; j < renderedPoints.length; j++) {
+                    const dx = renderedPoints[i].x - renderedPoints[j].x;
+                    const dy = renderedPoints[i].y - renderedPoints[j].y;
+                    const dist = Math.sqrt(dx*dx + dy*dy);
+                    if (dist < 120) {
+                        ctx.beginPath();
+                        ctx.strokeStyle = `rgba(100, 116, 139, ${1 - dist/120})`;
+                        ctx.moveTo(renderedPoints[i].x, renderedPoints[i].y);
+                        ctx.lineTo(renderedPoints[j].x, renderedPoints[j].y);
+                        ctx.stroke();
+                    }
+                }
+            }
+            
+            requestAnimationFrame(animateParticles);
+        }
+        initParticles();
+        animateParticles();
+
+        // --- STATE & DOM ---
+        const els = {
+            console: document.getElementById('logConsole'),
+            startBtn: document.getElementById('startButton'),
+            prompt: document.getElementById('designPrompt'),
+            status: document.getElementById('currentStatus'),
+            key1: document.getElementById('apiKey1'),
+            key2: document.getElementById('apiKey2'),
+            monitorC1: document.getElementById('monitor-c1'),
+            monitorC2: document.getElementById('monitor-c2'),
+            container: document.getElementById('mainContainer'),
+            exportPanel: document.getElementById('exportPanel'),
+            pdfBtn: document.getElementById('pdfButton'),
+            followUpPanel: document.getElementById('followUpPanel'),
+            followUpPrompt: document.getElementById('followUpPrompt'),
+            followUpBtn: document.getElementById('followUpButton'),
+            depthToggle: document.getElementById('depthToggle'),
+            recursiveToggle: document.getElementById('recursiveToggle'),
+            followUpDepthToggle: document.getElementById('followUpDepthToggle'),
+            micBtn: document.getElementById('micButton'),
+            muteToggle: document.getElementById('muteToggle')
+        };
+
+        let state = {
+            processing: false,
+            runCount: 0,
+            stepGlobal: 0,
+            history: [],
+            keyIndex: 0,
+            results: []
+        };
+
+        // --- PRESETS ---
+        const PRESETS = [
+            { l: "Dyson Swarm", p: "Self-repairing Dyson swarm harvesting stellar plasma for fusion propulsion." },
+            { l: "Nano Immunity", p: "Programmable nanobot leukocytes identifying and neutralizing synthetic pathogens." },
+            { l: "Zero-Point", p: "Macroscopic Casimir effect array for sustainable vacuum energy extraction." },
+            { l: "Terraform", p: "Autonomous atmospheric processor drone for rapid planetary terraforming." }
+        ];
+
+        function loadPresets() {
+            const c = document.getElementById('presetContainer');
+            c.innerHTML = '';
+            PRESETS.forEach(item => {
+                const d = document.createElement('div');
+                d.className = 'preset-chip';
+                d.innerText = item.l;
+                d.onclick = () => {
+                    AUDIO.click();
+                    els.prompt.value = item.p;
+                    els.prompt.classList.add('bg-cyan-900/40');
+                    setTimeout(() => els.prompt.classList.remove('bg-cyan-900/40'), 200);
+                };
+                c.appendChild(d);
+            });
+        }
+
+        // --- UTILS ---
+        function formatMD(text) {
+            text = text.replace(/### (.*$)/gim, '<span class="md-heading">$1</span>');
+            text = text.replace(/\*\*(.*?)\*\*/g, '<span class="md-strong">$1</span>');
+            text = text.replace(/^\* (.*$)/gim, '<ul class="md-list"><li>$1</li></ul>');
+            text = text.replace(/<\/ul>\s*<ul class="md-list">/g, '');
+            
+            // Aggressive Math Cleaning
+            text = text.replace(/\$\$/g, '')  // Remove double $$
+                       .replace(/\$/g, '')    // Remove single $
+                       .replace(/\\frac{([^}]+)}{([^}]+)}/g, '($1)/($2)') // \frac{a}{b} -> (a)/(b)
+                       .replace(/\\cdot/g, '·')
+                       .replace(/\\times/g, '×')
+                       .replace(/\\approx/g, '≈')
+                       .replace(/\\propto/g, '∝')
+                       .replace(/\\rightarrow/g, '→')
+                       .replace(/\\le/g, '≤')
+                       .replace(/\\ge/g, '≥')
+                       .replace(/\\rho/g, 'ρ')
+                       .replace(/\\epsilon/g, 'ε')
+                       .replace(/\\Delta/g, 'Δ')
+                       .replace(/\\mu/g, 'μ')
+                       .replace(/\\pi/g, 'π')
+                       .replace(/\\sigma/g, 'σ')
+                       .replace(/\\theta/g, 'θ')
+                       .replace(/\\alpha/g, 'α')
+                       .replace(/\\beta/g, 'β')
+                       .replace(/\\gamma/g, 'γ')
+                       .replace(/\\omega/g, 'ω')
+                       .replace(/\\sqrt{([^}]+)}/g, '√($1)')
+                       .replace(/\\text{([^}]+)}/g, '$1')
+                       .replace(/\\([a-zA-Z]+)/g, '$1') // Remove remaining backslashes from commands
+                       .replace(/_\{([^}]+)\}/g, '_$1') // _{text} -> _text
+                       .replace(/\^\{([^}]+)\}/g, '^$1'); // ^{text} -> ^text
+
+            return text;
+        }
+
+        function typeWriter(element, text, speed = 8) {
+            return new Promise(resolve => {
+                let i = 0;
+                element.innerHTML = '<span class="cursor-blink">|</span>';
+                
+                function type() {
+                    if (i < text.length) {
+                        if (text.substring(i).startsWith('<')) {
+                            const tagEnd = text.indexOf('>', i);
+                            if (tagEnd !== -1) {
+                                element.innerHTML = text.substring(0, tagEnd + 1) + '<span class="cursor-blink">|</span>';
+                                i = tagEnd + 1;
+                                setTimeout(type, speed);
+                                return;
+                            }
+                        }
+                        
+                        element.innerHTML = text.substring(0, i + 1) + '<span class="cursor-blink">|</span>';
+                        i++;
+                        const variance = Math.random() * 5;
+                        setTimeout(type, speed + variance);
+                    } else {
+                        element.innerHTML = text; 
+                        resolve();
+                    }
+                }
+                type();
+            });
+        }
+
+        function getActiveKeyConfig() {
+            const k1 = els.key1.value.trim();
+            const k2 = els.key2.value.trim();
+            if(!k1 && !k2) throw new Error("NO API KEYS DETECTED. PLEASE INPUT KEYS.");
+            
+            let key = k1 || k2;
+            let id = k1 ? 1 : 2;
+
+            if (k1 && k2) {
+                if (state.keyIndex % 2 === 0) { key = k1; id = 1; }
+                else { key = k2; id = 2; }
+                state.keyIndex++;
+            }
+            
+            return { 
+                url: `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${key}`,
+                id: id 
+            };
+        }
+
+        function setVisualState(processing, coreId = 0) {
+            state.processing = processing;
+            els.prompt.disabled = processing;
+            els.startBtn.disabled = processing;
+            els.followUpBtn.disabled = processing;
+            
+            if (processing) {
+                els.startBtn.innerHTML = '<span class="animate-pulse">SYNTHESIZING...</span>';
+                els.status.innerText = "PROCESSING VECTOR...";
+                els.status.className = "text-xs font-mono text-yellow-400 animate-pulse";
+                if (coreId === 1) els.monitorC1.classList.add('active-c1');
+                if (coreId === 2) els.monitorC2.classList.add('active-c2');
+                els.followUpBtn.innerHTML = '<span class="animate-pulse">PROCESSING...</span>';
+            } else {
+                els.startBtn.innerHTML = '<span class="mr-3">Initiate Sequence</span><svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" class="w-4 h-4 group-hover:translate-x-1 transition-transform"><path fill-rule="evenodd" d="M4.5 5.653c0-1.427 1.529-2.33 2.779-1.643l11.54 6.347c1.295.712 1.295 2.573 0 3.286L7.28 19.99c-1.25.687-2.779-.217-2.779-1.643V5.653Z" clip-rule="evenodd" /></svg>';
+                els.status.innerText = "SYSTEM ONLINE";
+                els.status.className = "text-xs font-mono text-cyan-500";
+                els.monitorC1.classList.remove('active-c1');
+                els.monitorC2.classList.remove('active-c2');
+                updateFollowUpBtn();
+            }
+        }
+
+        function updateFollowUpBtn() {
+             const isRecursive = els.recursiveToggle.checked;
+             const steps = els.followUpDepthToggle.checked ? 50 : 25;
+             const depthContainer = document.getElementById('followUpDepthContainer');
+             
+             if (isRecursive) {
+                 // Recursion Mode
+                 depthContainer.classList.remove('opacity-20', 'pointer-events-none', 'blur-sm');
+                 els.followUpBtn.innerHTML = `INITIATE RECURSIVE LOOP <span class="text-fuchsia-500 font-bold ml-2">[${steps} STEPS]</span>`;
+                 els.followUpBtn.className = "w-full py-3 mt-2 bg-fuchsia-900/20 border border-fuchsia-500/50 text-fuchsia-200 text-xs font-bold hover:bg-fuchsia-900/40 transition-all uppercase tracking-widest shadow-[0_0_15px_rgba(217,70,239,0.1)] hover:shadow-[0_0_20px_rgba(217,70,239,0.3)]";
+             } else {
+                 // Chat Mode
+                 depthContainer.classList.add('opacity-20', 'pointer-events-none', 'blur-sm');
+                 els.followUpBtn.innerHTML = `TRANSMIT QUERY <span class="text-slate-500 font-bold ml-2">[SINGLE SEARCH]</span>`;
+                 els.followUpBtn.className = "w-full py-3 mt-2 bg-slate-800/50 border border-slate-600 text-slate-300 text-xs font-bold hover:bg-slate-800 hover:text-white transition-all uppercase tracking-widest";
+             }
+        }
+
+        // --- LOGIC ---
+        
+        async function addLogEntry(title, text, typeClass, coreId) {
+            const div = document.createElement('div');
+            div.className = `step-entry ${typeClass}`;
+            
+            const coreLabel = coreId ? `CORE_0${coreId}` : 'SYS_INT';
+            const coreColor = coreId === 1 ? 'text-cyan-400' : (coreId === 2 ? 'text-fuchsia-400' : 'text-purple-400');
+
+            div.innerHTML = `
+                <div class="flex justify-between border-b border-white/10 pb-2 mb-2">
+                    <span class="font-mono text-xs font-bold ${coreColor}">${title}</span>
+                    <span class="font-mono text-[10px] text-slate-500">${coreLabel}</span>
+                </div>
+                <div class="log-content text-sm font-mono text-slate-300 leading-relaxed"></div>
+            `;
+            
+            els.console.appendChild(div);
+            els.console.scrollTop = els.console.scrollHeight;
+            
+            const contentBox = div.querySelector('.log-content');
+            await typeWriter(contentBox, formatMD(text), 4); 
+            els.console.scrollTop = els.console.scrollHeight;
+        }
+
+        async function runPhase(phasePrompt, runPhase, globalGoal, steps, offset) {
+            let prev = phasePrompt;
+            
+            for(let i=0; i<steps; i++) {
+                const stepNum = offset + i + 1;
+                const isOdd = stepNum % 2 !== 0;
+                
+                let config;
+                try { config = getActiveKeyConfig(); } 
+                catch(e) { 
+                    alert(e.message); 
+                    throw e; 
+                }
+
+                setVisualState(true, config.id);
+                AUDIO.processing();
+
+                const title = isOdd ? `PHASE ${runPhase} // STEP ${stepNum}: DERIVATION` : `PHASE ${runPhase} // STEP ${stepNum}: OPTIMIZATION`;
+                const typeClass = isOdd ? 'core-1-active' : 'core-2-active';
+                const sysInstruct = isOdd 
+                    ? `Act as Physics Engine. Step ${stepNum}. Context: "${prev}". Derive next physical component using first-principles. Technical. IMPORTANT: Output plain text only. Do NOT use LaTeX, markdown math, or special characters (like \\frac, \\epsilon). Write formulas as text (e.g. A = B/C).`
+                    : `Act as Optimization Engine. Step ${stepNum}. Analyze: "${prev}". Propose exotic improvement for goal: "${globalGoal}". Use search. IMPORTANT: Output plain text only. Do NOT use LaTeX.`;
+                
+                const payload = {
+                    contents: [{ parts: [{ text: prev }] }],
+                    systemInstruction: { parts: [{ text: sysInstruct }] }
+                };
+                if(!isOdd) payload.tools = [{ "google_search": {} }];
+
+                try {
+                    const res = await fetch(config.url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify(payload)
+                    });
+                    const data = await res.json();
+                    
+                    setVisualState(false);
+                    
+                    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "ERR: NO DATA";
+                    await addLogEntry(title, text, typeClass, config.id);
+                    AUDIO.success();
+                    
+                    state.results.push({ step: stepNum, title, result: text });
+                    prev = text;
+
+                } catch(e) {
+                    setVisualState(false);
+                    console.error(e);
+                    await addLogEntry("SYSTEM ERROR", e.message, "border-l-red-500 bg-red-900/20", 0);
+                    throw e;
+                }
+            }
+            return prev;
+        }
+
+        async function init(prompt, isRetrigger = false) {
+            if (state.processing) return;
+            
+            if (!isRetrigger) {
+                if (!els.prompt.value.trim()) return;
+                state.runCount = 1;
+                state.results = [];
+                state.stepGlobal = 0;
+                state.history = [];
+                els.exportPanel.classList.add('opacity-50', 'pointer-events-none');
+            } else {
+                state.runCount++;
+            }
+            
+            AUDIO.click();
+            
+            const totalSteps = isRetrigger 
+                ? (els.followUpDepthToggle.checked ? 50 : 25)
+                : (els.depthToggle.checked ? 50 : 25);
+            
+            const goal = prompt || els.prompt.value.trim();
+            
+            try {
+                if(isRetrigger) await addLogEntry(`EVOLUTION SEQUENCE ${state.runCount}`, `Initiating refinement protocol on vector: ${goal.substring(0,30)}...`, "border-l-purple-500 bg-purple-900/20", 0);
+                
+                const final = await runPhase(goal, state.runCount, goal, totalSteps, state.results.length);
+                
+                els.exportPanel.classList.remove('opacity-50', 'pointer-events-none');
+                els.followUpPanel.classList.remove('hidden');
+                await addLogEntry("SEQUENCE COMPLETE", "Synthesis manifest compiled. Ready for export or further evolution.", "border-l-emerald-500 bg-emerald-900/20", 0);
+
+            } catch(e) {
+                // Err handled in runPhase
+            }
+        }
+
+        // --- LISTENERS ---
+        els.startBtn.onclick = () => init(null, false);
+        els.followUpBtn.onclick = () => {
+            const val = els.followUpPrompt.value.trim();
+            if(!val) return;
+            if (els.recursiveToggle.checked) {
+                els.followUpPrompt.value = '';
+                init(val, true);
+            } else {
+                manualRefine(val);
+            }
+        };
+
+        async function manualRefine(query) {
+            AUDIO.click();
+            els.followUpPrompt.value = '';
+            try {
+                const config = getActiveKeyConfig();
+                setVisualState(true, config.id);
+                AUDIO.processing();
+                
+                const res = await fetch(config.url, {
+                        method: 'POST',
+                        headers: {'Content-Type': 'application/json'},
+                        body: JSON.stringify({
+                            contents: [{ parts: [{ text: query }] }],
+                            systemInstruction: { parts: [{ text: "Nexus Architect. Refine specific aspect. Concise. Output plain text only." }] },
+                            tools: [{ "google_search": {} }]
+                        })
+                });
+                const data = await res.json();
+                setVisualState(false);
+                
+                const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "ERR";
+                await addLogEntry("MANUAL REFINEMENT", text, "followup-active", config.id);
+                AUDIO.success();
+                
+            } catch(e) {
+                setVisualState(false);
+            }
+        }
+
+        // PDF
+        els.pdfBtn.onclick = () => {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF();
+            doc.setFillColor(0,0,0); doc.rect(0,0,210,297,'F');
+            let y=20;
+            doc.setTextColor(6,182,212); doc.setFont("courier", "bold"); doc.setFontSize(20);
+            doc.text("NEXUS MANIFEST V4.2", 10, y); y+=10;
+            doc.setFontSize(10); doc.setTextColor(255,255,255);
+            
+            state.results.forEach(r => {
+                if(y>270){ doc.addPage(); doc.setFillColor(0,0,0); doc.rect(0,0,210,297,'F'); y=20;}
+                doc.setTextColor(r.step%2?6:217, r.step%2?182:70, r.step%2?212:239);
+                doc.text(`STEP ${r.step}: ${r.title}`, 10, y); y+=5;
+                doc.setTextColor(200,200,200);
+                const lines = doc.splitTextToSize(r.result.replace(/[*#]/g,''), 190);
+                doc.text(lines, 10, y); y += lines.length*4 + 5;
+            });
+            doc.save("nexus_manifest.pdf");
+        };
+
+        // Audio Toggle
+        els.muteToggle.onclick = () => {
+            AUDIO.enabled = !AUDIO.enabled;
+            if(AUDIO.enabled) {
+                AUDIO.init();
+                document.getElementById('icon-sound-on').classList.remove('hidden');
+                document.getElementById('icon-sound-off').classList.add('hidden');
+                els.muteToggle.classList.add('text-cyan-400');
+            } else {
+                document.getElementById('icon-sound-on').classList.add('hidden');
+                document.getElementById('icon-sound-off').classList.remove('hidden');
+                els.muteToggle.classList.remove('text-cyan-400');
+            }
+        };
+        
+        // Other Toggles
+        els.recursiveToggle.onchange = updateFollowUpBtn;
+        els.followUpDepthToggle.onchange = updateFollowUpBtn;
+
+        // INIT
+        window.onload = () => {
+            loadPresets();
+            els.key1.value = DEFAULTS.KEY_1;
+            els.key2.value = DEFAULTS.KEY_2;
+            updateFollowUpBtn(); // Set initial button state
+            
+            if('webkitSpeechRecognition' in window) {
+                const rec = new webkitSpeechRecognition();
+                rec.continuous = false;
+                els.micBtn.onclick = () => {
+                    els.micBtn.classList.add('text-red-500');
+                    rec.start();
+                };
+                rec.onresult = (e) => els.prompt.value += " " + e.results[0][0].transcript;
+                rec.onend = () => els.micBtn.classList.remove('text-red-500');
+            } else {
+                els.micBtn.style.display = 'none';
+            }
+        };
+
+    </script>
+</body>
+</html>

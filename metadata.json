@@ -1,0 +1,7 @@
+{
+  "name": "Nexus Recursive Synthesis Engine",
+  "description": "A dual-core recursive generative engine for advanced physical architecture and material synthesis.",
+  "requestFramePermissions": [
+    "microphone"
+  ]
+}
